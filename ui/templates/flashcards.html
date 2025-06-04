@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Flashcards Due</title>
+</head>
+<body>
+    <h1>Flashcards Due Today</h1>
+    {% if cards %}
+    <ul>
+    {% for card in cards %}
+        <li>{{ card.question }}</li>
+    {% endfor %}
+    </ul>
+    {% else %}
+    <p>No cards due today.</p>
+    {% endif %}
+    <a href="/">Home</a>
+</body>
+</html>

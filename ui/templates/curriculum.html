@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Curriculum</title>
+</head>
+<body>
+    <h1>{{ curriculum.goal }}</h1>
+    <ul>
+    {% for topic in curriculum.topics %}
+        <li>
+            <strong>{{ topic.title }}</strong>
+            {% if topic.prerequisites %}
+            <em>Prerequisites: {{ ", ".join(topic.prerequisites) }}</em>
+            {% endif %}
+        </li>
+    {% endfor %}
+    </ul>
+    <a href="/">Home</a>
+</body>
+</html>
