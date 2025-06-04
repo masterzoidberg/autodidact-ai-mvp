@@ -21,8 +21,10 @@ sys.path.append(str(BASE_DIR))
 from learning import spaced_scheduler
 from utils import focus_timer
 from videos import video_manager
+from ingestion import document_ingestor, video_ingestor
 CURRICULUM_PATH = BASE_DIR / "curriculum" / "curriculum.json"
 DATA_DIR = BASE_DIR / "data"
+UPLOAD_DIR = DATA_DIR / "uploads"
 QUEUE_PATH = BASE_DIR / "spaced_review_queue.json"
 FOCUS_LOG_PATH = BASE_DIR / "focus_log.json"
 
@@ -69,11 +71,26 @@ def upload():
     if not file or file.filename == "":
         flash("No file selected")
         return redirect(url_for("index"))
-    DATA_DIR.mkdir(exist_ok=True)
-    dest = DATA_DIR / secure_filename(file.filename)
+
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    dest = UPLOAD_DIR / secure_filename(file.filename)
     file.save(dest)
-    flash(f"Uploaded to {dest}")
-    return redirect(url_for("index"))
+
+    paths = []
+    ext = dest.suffix.lower()
+    if ext in {".pdf", ".epub"}:
+        output = document_ingestor.ingest_document(str(dest))
+        app.logger.info(f"Document ingested to {output}")
+        paths.append(str(output))
+    elif ext == ".mp4":
+        t_path, c_path = video_ingestor.ingest_video(str(dest))
+        app.logger.info(f"Video processed: {t_path}, {c_path}")
+        paths.extend([str(t_path), str(c_path)])
+    else:
+        flash("Unsupported file type")
+        return redirect(url_for("index"))
+
+    return render_template("upload_success.html", uploaded=str(dest), paths=paths)
 
 @app.route("/flashcards")
 def flashcards():
