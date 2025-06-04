@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Daily Review</title>
+</head>
+<body>
+    <h1>Daily Flashcard Review</h1>
+    {% if cards %}
+    <ul>
+    {% for card in cards %}
+        <li>
+            <form method="post">
+                <p>{{ card.question }}</p>
+                <input type="hidden" name="question" value="{{ card.question }}">
+                <button type="submit" name="result" value="correct">Correct</button>
+                <button type="submit" name="result" value="incorrect">Incorrect</button>
+            </form>
+        </li>
+    {% endfor %}
+    </ul>
+    {% else %}
+    <p>No cards due today.</p>
+    {% endif %}
+    <a href="/">Home</a>
+</body>
+</html>
