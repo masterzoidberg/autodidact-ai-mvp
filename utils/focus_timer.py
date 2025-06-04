@@ -24,20 +24,33 @@ def countdown(minutes: int) -> None:
     print("Time's up!            ")
 
 
-def log_session(minutes: int, log_path: Path) -> None:
+def log_session(
+    start: datetime,
+    end: datetime,
+    session_type: str,
+    project_id: str,
+    log_path: Path,
+) -> None:
     """Append a completed session entry to the log file."""
+    minutes = int((end - start).total_seconds() // 60)
     log_entry = {
+        "start": start.isoformat() + "Z",
+        "end": end.isoformat() + "Z",
         "session_length": minutes,
-        "completed_at": datetime.utcnow().isoformat() + "Z",
+        "session_type": session_type,
+        "project_id": project_id,
     }
     if log_path.exists():
-        data = json.loads(log_path.read_text())
-        if not isinstance(data, list):
+        try:
+            data = json.loads(log_path.read_text())
+            if not isinstance(data, list):
+                data = []
+        except json.JSONDecodeError:
             data = []
     else:
         data = []
     data.append(log_entry)
-    log_path.write_text(json.dumps(data, indent=2))
+    log_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
 def main() -> None:
@@ -47,15 +60,19 @@ def main() -> None:
         type=int,
         help="Session length in minutes (25, 50, or 90)",
     )
+    parser.add_argument("--type", default="read", help="Session type")
+    parser.add_argument("--project", default="default", help="Project ID")
     args = parser.parse_args()
     if args.minutes not in VALID_LENGTHS:
         print("Invalid session length. Choose from 25, 50, or 90 minutes.")
         sys.exit(1)
 
+    start = datetime.utcnow()
     countdown(args.minutes)
+    end = datetime.utcnow()
 
     log_path = Path(__file__).resolve().parents[1] / "focus_log.json"
-    log_session(args.minutes, log_path)
+    log_session(start, end, args.type, args.project, log_path)
     print(f"Session logged to {log_path}")
 
 
