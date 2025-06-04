@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Flashcard Quiz</title>
+</head>
+<body>
+    <h1>Flashcard Quiz</h1>
+    {% if question %}
+        <p>{{ question }}</p>
+        {% if not show_answer %}
+        <form method="post">
+            <input type="hidden" name="index" value="{{ index }}">
+            <input type="text" name="answer">
+            <button type="submit">Submit</button>
+        </form>
+        {% else %}
+            <p>Correct answer: {{ correct_answer }}</p>
+            {% if next_index is not none %}
+                <a href="{{ url_for('quiz', index=next_index) }}">Next Card</a>
+            {% else %}
+                <p>No more cards.</p>
+            {% endif %}
+        {% endif %}
+    {% else %}
+        <p>No flashcards available.</p>
+    {% endif %}
+    <br>
+    <a href="/">Home</a>
+</body>
+</html>
