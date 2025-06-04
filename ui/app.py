@@ -177,16 +177,103 @@ def generate_flashcards_route():
     out_path = flashcard_gen.generate_flashcards_from_transcript(transcript_path)
     return {"flashcards": str(out_path)}
 
-def _run_focus(minutes: int) -> None:
+def _run_focus(minutes: int, session_type: str, project_id: str) -> None:
+    start = datetime.utcnow()
     focus_timer.countdown(minutes)
-    focus_timer.log_session(minutes, FOCUS_LOG_PATH)
+    end = datetime.utcnow()
+    focus_timer.log_session(start, end, session_type, project_id, FOCUS_LOG_PATH)
 
+
+def _calculate_streak(log: list[dict]) -> int:
+    streak = 0
+    last_date = None
+    for entry in reversed(log):
+        try:
+            start_date = datetime.fromisoformat(entry["start"].replace("Z", "")).date()
+        except Exception:
+            continue
+        if last_date is None:
+            streak = 1
+            last_date = start_date
+            continue
+        diff = (last_date - start_date).days
+        if diff == 0:
+            continue
+        if diff == 1:
+            streak += 1
+            last_date = start_date
+        else:
+            break
+    return streak
+    
 @app.route("/focus", methods=["POST"])
 def focus():
     minutes = int(request.form.get("minutes", 25))
-    threading.Thread(target=_run_focus, args=(minutes,), daemon=True).start()
-    flash(f"Started a {minutes} minute focus session")
+    session_type = request.form.get("session_type", "read")
+    project_id = request.form.get("project_id", "default")
+    threading.Thread(
+        target=_run_focus,
+        args=(minutes, session_type, project_id),
+        daemon=True,
+    ).start()
+    flash(
+        f"Started a {minutes} minute {session_type} session for project {project_id}"
+    )
     return redirect(url_for("index"))
+
+
+@app.route("/session_summary", methods=["GET", "POST"])
+def session_summary():
+    if not FOCUS_LOG_PATH.exists():
+        return "No sessions", 404
+    try:
+        log = json.loads(FOCUS_LOG_PATH.read_text())
+        if not isinstance(log, list):
+            log = []
+    except json.JSONDecodeError:
+        log = []
+    if not log:
+        return "No sessions", 404
+    last = log[-1]
+    streak = _calculate_streak(log)
+    total_time = last.get("session_length")
+    session_type = last.get("session_type", "")
+    project_id = last.get("project_id", "default")
+
+    if request.method == "POST":
+        surprised = request.form.get("surprised", "")
+        revisit = request.form.get("revisit", "")
+        out_dir = DATA_DIR / "projects" / project_id
+        out_dir.mkdir(parents=True, exist_ok=True)
+        ref_path = out_dir / "reflections.json"
+        if ref_path.exists():
+            try:
+                reflections = json.loads(ref_path.read_text())
+                if not isinstance(reflections, list):
+                    reflections = []
+            except json.JSONDecodeError:
+                reflections = []
+        else:
+            reflections = []
+        reflections.append(
+            {
+                "start": last.get("start"),
+                "end": last.get("end"),
+                "surprised": surprised,
+                "revisit": revisit,
+            }
+        )
+        ref_path.write_text(json.dumps(reflections, indent=2), encoding="utf-8")
+        flash("Reflection saved")
+        return redirect(url_for("index"))
+
+    return render_template(
+        "session_summary.html",
+        total_time=total_time,
+        session_type=session_type,
+        streak=streak,
+        project_id=project_id,
+    )
 
 
 @app.route("/clip", methods=["POST"])
