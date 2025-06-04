@@ -1,0 +1,1 @@
+Autodidact AI aims to help individuals structure their learning. This repository contains tools for generating curriculums, creating flashcards, and scheduling reviews. To demonstrate summarization, we provide this simple paragraph. It has more than three sentences to test the output.
