@@ -2,6 +2,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from typing import List, Dict
+import uuid
 
 import fitz  # PyMuPDF
 from ebooklib import epub
@@ -36,13 +37,16 @@ def write_sections(sections: List[Dict[str, str]], output_path: Path) -> None:
             f.write(f"# {sec['title']}\n\n{sec['text']}\n\n")
 
 
-def ingest_document(file_path: str) -> Path:
+def ingest_document(file_path: str, project: str | None = None) -> Path:
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
 
-    output_dir = Path("data")
-    output_dir.mkdir(exist_ok=True)
+    base_dir = Path("data") / "projects"
+    if project is None:
+        project = uuid.uuid4().hex
+    output_dir = base_dir / project
+    output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{path.stem}.md"
 
     if path.suffix.lower() == ".pdf":
@@ -57,8 +61,12 @@ def ingest_document(file_path: str) -> Path:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python document_ingestor.py <file.pdf|file.epub>")
-        sys.exit(1)
-    result = ingest_document(sys.argv[1])
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Ingest a document file")
+    parser.add_argument("file", help="PDF or EPUB to ingest")
+    parser.add_argument("--project", help="Project ID", default=None)
+    args = parser.parse_args()
+
+    result = ingest_document(args.file, args.project)
     print(f"Written output to {result}")

@@ -2,6 +2,7 @@ from __future__ import annotations
 import sys
 import json
 from pathlib import Path
+import uuid
 
 
 def transcribe(source: str) -> str:
@@ -15,9 +16,12 @@ def create_chunks(transcript: str) -> list[dict[str, float | str]]:
     return [{"start": 0.0, "end": 10.0, "text": transcript}]
 
 
-def ingest_video(source: str) -> tuple[Path, Path]:
-    data_dir = Path("data")
-    data_dir.mkdir(exist_ok=True)
+def ingest_video(source: str, project: str | None = None) -> tuple[Path, Path]:
+    base_dir = Path("data") / "projects"
+    if project is None:
+        project = uuid.uuid4().hex
+    data_dir = base_dir / project
+    data_dir.mkdir(parents=True, exist_ok=True)
 
     transcript_path = data_dir / "transcript.txt"
     chunks_path = data_dir / "transcript_chunks.json"
@@ -32,10 +36,13 @@ def ingest_video(source: str) -> tuple[Path, Path]:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python video_ingestor.py <video.mp4|YouTube URL>")
-        sys.exit(1)
+    import argparse
 
-    t_path, c_path = ingest_video(sys.argv[1])
+    parser = argparse.ArgumentParser(description="Ingest a video")
+    parser.add_argument("source", help="Video file or URL")
+    parser.add_argument("--project", help="Project ID", default=None)
+    args = parser.parse_args()
+
+    t_path, c_path = ingest_video(args.source, args.project)
     print(f"Wrote transcript to {t_path}")
     print(f"Wrote chunks to {c_path}")

@@ -70,6 +70,7 @@ def curriculum():
 @app.route("/upload", methods=["POST"])
 def upload():
     file = request.files.get("file")
+    project = request.form.get("project") or "default"
     if not file or file.filename == "":
         flash("No file selected")
         return redirect(url_for("index"))
@@ -81,11 +82,11 @@ def upload():
     paths = []
     ext = dest.suffix.lower()
     if ext in {".pdf", ".epub"}:
-        output = document_ingestor.ingest_document(str(dest))
+        output = document_ingestor.ingest_document(str(dest), project)
         app.logger.info(f"Document ingested to {output}")
         paths.append(str(output))
     elif ext == ".mp4":
-        t_path, c_path = video_ingestor.ingest_video(str(dest))
+        t_path, c_path = video_ingestor.ingest_video(str(dest), project)
         app.logger.info(f"Video processed: {t_path}, {c_path}")
         paths.extend([str(t_path), str(c_path)])
     else:
