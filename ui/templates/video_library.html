@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Video Library</title>
+</head>
+<body>
+    <h1>Video Library</h1>
+    {% if videos %}
+    <table border="1" cellpadding="5">
+        <tr>
+            <th>Video</th>
+            <th>Duration (s)</th>
+            <th>Actions</th>
+        </tr>
+        {% for vid in videos %}
+        <tr>
+            <td>{{ vid.filename }}</td>
+            <td>{{ vid.duration }}</td>
+            <td>
+                <a href="{{ url_for('play_video') }}?video={{ vid.filename }}">Play</a>
+                {% if vid.transcript %}
+                <a href="{{ vid.transcript }}">View Summary</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p>No videos found.</p>
+    {% endif %}
+    <a href="/">Home</a>
+</body>
+</html>
