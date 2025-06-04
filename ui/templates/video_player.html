@@ -12,10 +12,15 @@
 <body>
     <h1>{{ video }}</h1>
     <div class="container">
-        <video width="640" controls>
-            <source src="/video/{{ video }}" type="video/mp4">
-            Your browser does not support the video tag.
-        </video>
+        <div>
+            <video id="video" width="640" controls>
+                <source src="/video/{{ video }}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <p>Current Time: <span id="timestamp">0.00</span> s</p>
+            <button id="startBtn">Start Clip</button>
+            <button id="endBtn">End Clip</button>
+        </div>
         <div class="transcript">
             {% for chunk in chunks %}
             <p>
@@ -28,5 +33,44 @@
         </div>
     </div>
     <a href="/videos">Back to library</a>
+
+    <script>
+        const video = document.getElementById('video');
+        const ts = document.getElementById('timestamp');
+        let startTime = null;
+
+        video.addEventListener('timeupdate', () => {
+            ts.textContent = video.currentTime.toFixed(2);
+        });
+
+        document.getElementById('startBtn').addEventListener('click', () => {
+            startTime = video.currentTime;
+            alert(`Start clip at ${startTime.toFixed(2)}s`);
+        });
+
+        document.getElementById('endBtn').addEventListener('click', () => {
+            if (startTime === null) {
+                alert('Set start time first');
+                return;
+            }
+            const endTime = video.currentTime;
+            fetch('/clip', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    video: '{{ video }}',
+                    start: startTime,
+                    end: endTime
+                })
+            }).then(resp => {
+                if (resp.ok) {
+                    alert('Clip saved');
+                    startTime = null;
+                } else {
+                    alert('Error saving clip');
+                }
+            });
+        });
+    </script>
 </body>
 </html>
