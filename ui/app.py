@@ -2,7 +2,15 @@ import threading
 from datetime import date
 from pathlib import Path
 import json
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import (
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    flash,
+    send_from_directory,
+)
 from werkzeug.utils import secure_filename
 
 import sys
@@ -12,6 +20,7 @@ sys.path.append(str(BASE_DIR))
 
 from learning import spaced_scheduler
 from utils import focus_timer
+from videos import video_manager
 CURRICULUM_PATH = BASE_DIR / "curriculum" / "curriculum.json"
 DATA_DIR = BASE_DIR / "data"
 QUEUE_PATH = BASE_DIR / "spaced_review_queue.json"
@@ -23,6 +32,29 @@ app.secret_key = "autodidact"  # simple session key
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/videos")
+def video_library():
+    videos = video_manager.list_videos()
+    return render_template("video_library.html", videos=videos)
+
+
+@app.route("/play")
+def play_video():
+    name = request.args.get("video")
+    if not name:
+        flash("No video specified")
+        return redirect(url_for("video_library"))
+    meta = video_manager.get_video_metadata(name)
+    return render_template(
+        "video_player.html", video=name, transcript=meta["transcript"], chunks=meta["chunks"]
+    )
+
+
+@app.route("/video/<path:filename>")
+def video_file(filename: str):
+    return send_from_directory(DATA_DIR, filename)
 
 @app.route("/curriculum")
 def curriculum():

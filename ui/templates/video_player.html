@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Video Player</title>
+    <style>
+        .container { display: flex; }
+        .transcript { margin-left: 20px; width: 300px; overflow-y: auto; }
+        .transcript p { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>{{ video }}</h1>
+    <div class="container">
+        <video width="640" controls>
+            <source src="/video/{{ video }}" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+        <div class="transcript">
+            {% for chunk in chunks %}
+            <p>
+                <strong>{{ chunk.start }} - {{ chunk.end }}</strong><br>
+                {{ chunk.text }}<br>
+                <button>Clip this</button>
+                <button>Make flashcard from sentence</button>
+            </p>
+            {% endfor %}
+        </div>
+    </div>
+    <a href="/videos">Back to library</a>
+</body>
+</html>
