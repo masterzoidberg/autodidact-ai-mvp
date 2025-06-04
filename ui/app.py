@@ -1,5 +1,5 @@
 import threading
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 import json
 from flask import (
@@ -29,6 +29,7 @@ UPLOAD_DIR = DATA_DIR / "uploads"
 QUEUE_PATH = BASE_DIR / "spaced_review_queue.json"
 FOCUS_LOG_PATH = BASE_DIR / "focus_log.json"
 CLIPS_PATH = BASE_DIR / "video_clips.json"
+REVIEW_LOG_PATH = BASE_DIR / "review_log.json"
 
 app = Flask(__name__)
 app.secret_key = "autodidact"  # simple session key
@@ -165,6 +166,35 @@ def save_clip():
     clips.append({"video": video, "start": start, "end": end})
     CLIPS_PATH.write_text(json.dumps(clips, indent=2), encoding="utf-8")
     return {"status": "saved"}
+
+
+@app.route("/review", methods=["GET", "POST"])
+def review():
+    """Daily review interface showing flashcards due today."""
+    cards = spaced_scheduler.get_due_flashcards()
+
+    if request.method == "POST":
+        question = request.form.get("question", "")
+        result = request.form.get("result", "incorrect")
+        correct = result == "correct"
+        entry = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "question": question,
+            "correct": correct,
+        }
+        if REVIEW_LOG_PATH.exists():
+            try:
+                log = json.loads(REVIEW_LOG_PATH.read_text())
+            except json.JSONDecodeError:
+                log = []
+        else:
+            log = []
+        log.append(entry)
+        REVIEW_LOG_PATH.write_text(json.dumps(log, indent=2), encoding="utf-8")
+        flash("Result logged")
+        return redirect(url_for("review"))
+
+    return render_template("review.html", cards=cards)
 
 
 @app.route("/quiz", methods=["GET", "POST"])
