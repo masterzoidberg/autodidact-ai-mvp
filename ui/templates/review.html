@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Daily Review</title>
+    <script>
+    function toggleAnswer(id) {
+        var el = document.getElementById(id);
+        if (el.style.display === "none") {
+            el.style.display = "block";
+        } else {
+            el.style.display = "none";
+        }
+    }
+    </script>
+</head>
+<body>
+    <h1>Daily Review</h1>
+    {% if cards %}
+    <ul>
+    {% for card in cards %}
+        <li>
+            <p>{{ card.question }}</p>
+            <button type="button" onclick="toggleAnswer('a{{ loop.index }}')">Show Answer</button>
+            <div id="a{{ loop.index }}" style="display:none;">
+                <p>{{ card.answer }}</p>
+            </div>
+            <form method="post" style="display:inline;">
+                <input type="hidden" name="question" value="{{ card.question }}">
+                <button type="submit" name="result" value="correct">Mark as Correct</button>
+                <button type="submit" name="result" value="incorrect">Mark as Incorrect</button>
+            </form>
+        </li>
+    {% endfor %}
+    </ul>
+    {% else %}
+    <p>No cards due today.</p>
+    {% endif %}
+    <a href="/">Home</a>
+</body>
+</html>
