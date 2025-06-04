@@ -166,5 +166,41 @@ def save_clip():
     CLIPS_PATH.write_text(json.dumps(clips, indent=2), encoding="utf-8")
     return {"status": "saved"}
 
+
+@app.route("/quiz", methods=["GET", "POST"])
+def quiz():
+    """Simple flashcard quiz interface."""
+    try:
+        cards = json.loads(FLASHCARDS_PATH.read_text()) if FLASHCARDS_PATH.exists() else []
+    except json.JSONDecodeError:
+        cards = []
+
+    index = int(request.form.get("index", request.args.get("index", 0)))
+    if index < 0:
+        index = 0
+
+    question = cards[index]["question"] if index < len(cards) else None
+
+    show_answer = False
+    user_answer = ""
+    correct_answer = ""
+    next_index = index + 1 if (index + 1) < len(cards) else None
+
+    if request.method == "POST":
+        show_answer = True
+        user_answer = request.form.get("answer", "")
+        if question is not None:
+            correct_answer = cards[index].get("answer", "")
+
+    return render_template(
+        "quiz.html",
+        question=question,
+        index=index,
+        show_answer=show_answer,
+        user_answer=user_answer,
+        correct_answer=correct_answer,
+        next_index=next_index,
+    )
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")
