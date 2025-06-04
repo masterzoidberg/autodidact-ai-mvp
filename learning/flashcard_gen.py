@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List, Dict
 
 
+
 def generate_flashcards(text_chunk: str) -> List[Dict[str, str]]:
     """Stub to generate example flashcards from *text_chunk*.
 
@@ -27,14 +28,8 @@ def generate_flashcards(text_chunk: str) -> List[Dict[str, str]]:
     return flashcards
 
 
-def generate_flashcards_from_transcript(transcript_file: str | Path) -> Path:
-    """Generate flashcards from a ``.transcript.json`` file.
-
-    Each chunk's title and lines are concatenated and passed to
-    :func:`generate_flashcards` to create simple question/answer pairs.
-    The resulting list is written to ``flashcards/{video_id}.json`` where
-    ``video_id`` is derived from the transcript filename.
-    """
+def generate_flashcards_from_transcript(transcript_file: str | Path, project: str = "default") -> Path:
+    """Generate flashcards from a ``.transcript.json`` file and store them for a project."""
 
     path = Path(transcript_file)
     data = json.loads(path.read_text())
@@ -53,10 +48,9 @@ def generate_flashcards_from_transcript(transcript_file: str | Path) -> Path:
         if content:
             cards.extend(generate_flashcards(content))
 
-    out_dir = Path("flashcards")
-    out_dir.mkdir(exist_ok=True)
-    video_id = path.stem.split(".")[0]
-    out_path = out_dir / f"{video_id}.json"
+    out_dir = Path("data") / "projects" / project
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "flashcards.json"
     out_path.write_text(json.dumps(cards, indent=2), encoding="utf-8")
     return out_path
 
@@ -67,13 +61,19 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="Generate flashcards from a text file")
     parser.add_argument("input_file", help="Path to the text file")
-    parser.add_argument("--output", default="flashcards.json", help="Output JSON file")
+    parser.add_argument(
+        "--project",
+        default="default",
+        help="Project ID to save flashcards under",
+    )
     args = parser.parse_args()
 
     text = Path(args.input_file).read_text(encoding="utf-8")
     cards = generate_flashcards(text)
 
-    out_path = Path(args.output)
+    out_dir = Path("data") / "projects" / args.project
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "flashcards.json"
     out_path.write_text(json.dumps(cards, indent=2), encoding="utf-8")
     print(f"Wrote {len(cards)} flashcards to {out_path}")
 

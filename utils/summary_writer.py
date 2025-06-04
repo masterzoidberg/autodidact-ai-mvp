@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import argparse
+import json
 
 
 def generate_summary(paragraph: str) -> str:
@@ -19,14 +20,20 @@ def generate_summary(paragraph: str) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate a summary from a text paragraph")
     parser.add_argument("input_file", help="Path to a text file containing a single paragraph")
-    parser.add_argument("--output", default="summary.txt", help="File to write the summary to")
+    parser.add_argument(
+        "--project",
+        default="default",
+        help="Project ID to save the summary under",
+    )
     args = parser.parse_args()
 
     text = Path(args.input_file).read_text(encoding="utf-8")
     summary = generate_summary(text)
 
-    out_path = Path(args.output)
-    out_path.write_text(summary, encoding="utf-8")
+    out_dir = Path("data") / "projects" / args.project
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "summary.json"
+    out_path.write_text(json.dumps({"summary": summary}, indent=2), encoding="utf-8")
     print(f"Wrote summary to {out_path}")
 
 

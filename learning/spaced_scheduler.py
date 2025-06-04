@@ -41,8 +41,18 @@ def due_today(queue: List[Dict[str, str]], today: date) -> List[Dict[str, str]]:
 
 
 def main() -> None:
-    flashcards_path = Path("flashcards.json")
-    queue_path = Path("spaced_review_queue.json")
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Generate or read a spaced review schedule")
+    parser.add_argument(
+        "--project",
+        default="default",
+        help="Project ID for which to generate the schedule",
+    )
+    args = parser.parse_args()
+
+    flashcards_path = Path("data") / "projects" / args.project / "flashcards.json"
+    queue_path = Path("data") / "projects" / args.project / "review_schedule.json"
 
     today = date.today()
 
