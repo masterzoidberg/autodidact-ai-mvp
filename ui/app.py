@@ -19,7 +19,7 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 sys.path.append(str(BASE_DIR))
 
 from learning import spaced_scheduler, flashcard_gen
-from utils import focus_timer
+from utils import focus_timer, summary_writer
 from videos import video_manager
 from ingestion import document_ingestor, video_ingestor
 FLASHCARDS_PATH = BASE_DIR / "flashcards.json"
@@ -80,20 +80,60 @@ def upload():
     file.save(dest)
 
     paths = []
+    summary = ""
+    flashcard_count = 0
+
     ext = dest.suffix.lower()
-    if ext in {".pdf", ".epub"}:
-        output = document_ingestor.ingest_document(str(dest), project)
-        app.logger.info(f"Document ingested to {output}")
-        paths.append(str(output))
-    elif ext == ".mp4":
-        t_path, c_path = video_ingestor.ingest_video(str(dest), project)
-        app.logger.info(f"Video processed: {t_path}, {c_path}")
-        paths.extend([str(t_path), str(c_path)])
-    else:
-        flash("Unsupported file type")
+
+    try:
+        if ext in {".pdf", ".epub"}:
+            output = document_ingestor.ingest_document(str(dest), project)
+            app.logger.info(f"Document ingested to {output}")
+            paths.append(str(output))
+
+            text = Path(output).read_text(encoding="utf-8")
+            summary = summary_writer.generate_summary(text)
+            summary_path = Path(output).parent / "summary.json"
+            summary_path.write_text(json.dumps({"summary": summary}, indent=2), encoding="utf-8")
+            paths.append(str(summary_path))
+
+            cards = flashcard_gen.generate_flashcards(text)
+            flashcards_path = Path(output).parent / "flashcards.json"
+            flashcards_path.write_text(json.dumps(cards, indent=2), encoding="utf-8")
+            flashcard_count = len(cards)
+            paths.append(str(flashcards_path))
+        elif ext == ".mp4":
+            t_path, c_path = video_ingestor.ingest_video(str(dest), project)
+            app.logger.info(f"Video processed: {t_path}, {c_path}")
+            paths.extend([str(t_path), str(c_path)])
+
+            transcript_text = Path(t_path).read_text(encoding="utf-8")
+            summary = summary_writer.generate_summary(transcript_text)
+            summary_path = Path(t_path).parent / "summary.json"
+            summary_path.write_text(json.dumps({"summary": summary}, indent=2), encoding="utf-8")
+            paths.append(str(summary_path))
+
+            flashcards_path = flashcard_gen.generate_flashcards_from_transcript(c_path, project)
+            paths.append(str(flashcards_path))
+            try:
+                flashcard_count = len(json.loads(Path(flashcards_path).read_text()))
+            except Exception:
+                flashcard_count = 0
+        else:
+            flash("Unsupported file type")
+            return redirect(url_for("index"))
+    except Exception as e:
+        app.logger.exception("Error processing upload")
+        flash(str(e))
         return redirect(url_for("index"))
 
-    return render_template("upload_success.html", uploaded=str(dest), paths=paths)
+    return render_template(
+        "upload_success.html",
+        uploaded=str(dest),
+        paths=paths,
+        summary=summary,
+        flashcard_count=flashcard_count,
+    )
 
 @app.route("/flashcards")
 def flashcards():

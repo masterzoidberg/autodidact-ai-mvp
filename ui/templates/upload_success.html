@@ -15,6 +15,13 @@
     {% endfor %}
     </ul>
     {% endif %}
+    {% if summary %}
+    <h2>Summary</h2>
+    <p>{{ summary }}</p>
+    {% endif %}
+    {% if flashcard_count %}
+    <p>Flashcards created: {{ flashcard_count }}</p>
+    {% endif %}
     <a href="/">Home</a>
 </body>
 </html>
