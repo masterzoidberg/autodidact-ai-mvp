@@ -22,6 +22,7 @@ from learning import spaced_scheduler, flashcard_gen
 from utils import focus_timer
 from videos import video_manager
 from ingestion import document_ingestor, video_ingestor
+FLASHCARDS_PATH = BASE_DIR / "flashcards.json"
 CURRICULUM_PATH = BASE_DIR / "curriculum" / "curriculum.json"
 DATA_DIR = BASE_DIR / "data"
 UPLOAD_DIR = DATA_DIR / "uploads"
@@ -98,6 +99,27 @@ def flashcards():
     queue = spaced_scheduler.read_queue(QUEUE_PATH)
     cards = spaced_scheduler.due_today(queue, date.today())
     return render_template("flashcards.html", cards=cards)
+
+
+@app.route("/dashboard")
+def dashboard():
+    docs = list(DATA_DIR.glob("*.md"))
+    videos = list(DATA_DIR.glob("*.mp4"))
+    try:
+        flashcards = json.loads(FLASHCARDS_PATH.read_text()) if FLASHCARDS_PATH.exists() else []
+    except json.JSONDecodeError:
+        flashcards = []
+    try:
+        focus_log = json.loads(FOCUS_LOG_PATH.read_text()) if FOCUS_LOG_PATH.exists() else []
+    except json.JSONDecodeError:
+        focus_log = []
+    metrics = {
+        "docs": len(docs),
+        "videos": len(videos),
+        "flashcards": len(flashcards),
+        "focus_sessions": len(focus_log),
+    }
+    return render_template("dashboard.html", metrics=metrics)
 
 
 @app.route("/generate_flashcards")
