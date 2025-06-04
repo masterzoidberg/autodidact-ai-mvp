@@ -27,6 +27,7 @@ DATA_DIR = BASE_DIR / "data"
 UPLOAD_DIR = DATA_DIR / "uploads"
 QUEUE_PATH = BASE_DIR / "spaced_review_queue.json"
 FOCUS_LOG_PATH = BASE_DIR / "focus_log.json"
+CLIPS_PATH = BASE_DIR / "video_clips.json"
 
 app = Flask(__name__)
 app.secret_key = "autodidact"  # simple session key
@@ -108,6 +109,26 @@ def focus():
     threading.Thread(target=_run_focus, args=(minutes,), daemon=True).start()
     flash(f"Started a {minutes} minute focus session")
     return redirect(url_for("index"))
+
+
+@app.route("/clip", methods=["POST"])
+def save_clip():
+    data = request.get_json(force=True, silent=True) or {}
+    video = data.get("video")
+    start = data.get("start")
+    end = data.get("end")
+    if not video or start is None or end is None:
+        return {"error": "Missing parameters"}, 400
+    if CLIPS_PATH.exists():
+        try:
+            clips = json.loads(CLIPS_PATH.read_text())
+        except json.JSONDecodeError:
+            clips = []
+    else:
+        clips = []
+    clips.append({"video": video, "start": start, "end": end})
+    CLIPS_PATH.write_text(json.dumps(clips, indent=2), encoding="utf-8")
+    return {"status": "saved"}
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")
