@@ -18,7 +18,7 @@ import sys
 BASE_DIR = Path(__file__).resolve().parents[1]
 sys.path.append(str(BASE_DIR))
 
-from learning import spaced_scheduler
+from learning import spaced_scheduler, flashcard_gen
 from utils import focus_timer
 from videos import video_manager
 from ingestion import document_ingestor, video_ingestor
@@ -98,6 +98,20 @@ def flashcards():
     queue = spaced_scheduler.read_queue(QUEUE_PATH)
     cards = spaced_scheduler.due_today(queue, date.today())
     return render_template("flashcards.html", cards=cards)
+
+
+@app.route("/generate_flashcards")
+def generate_flashcards_route():
+    video = request.args.get("video")
+    if not video:
+        return {"error": "Missing video"}, 400
+
+    transcript_path = DATA_DIR / f"{video}.transcript.json"
+    if not transcript_path.exists():
+        return {"error": "Transcript not found"}, 404
+
+    out_path = flashcard_gen.generate_flashcards_from_transcript(transcript_path)
+    return {"flashcards": str(out_path)}
 
 def _run_focus(minutes: int) -> None:
     focus_timer.countdown(minutes)

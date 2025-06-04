@@ -27,6 +27,40 @@ def generate_flashcards(text_chunk: str) -> List[Dict[str, str]]:
     return flashcards
 
 
+def generate_flashcards_from_transcript(transcript_file: str | Path) -> Path:
+    """Generate flashcards from a ``.transcript.json`` file.
+
+    Each chunk's title and lines are concatenated and passed to
+    :func:`generate_flashcards` to create simple question/answer pairs.
+    The resulting list is written to ``flashcards/{video_id}.json`` where
+    ``video_id`` is derived from the transcript filename.
+    """
+
+    path = Path(transcript_file)
+    data = json.loads(path.read_text())
+
+    if isinstance(data, dict):
+        chunks = data.get("chunks", [])
+    else:
+        chunks = data
+
+    cards: List[Dict[str, str]] = []
+    for chunk in chunks:
+        title = chunk.get("title", "")
+        lines = chunk.get("lines", [])
+        text = " ".join(lines)
+        content = f"{title}. {text}" if title else text
+        if content:
+            cards.extend(generate_flashcards(content))
+
+    out_dir = Path("flashcards")
+    out_dir.mkdir(exist_ok=True)
+    video_id = path.stem.split(".")[0]
+    out_path = out_dir / f"{video_id}.json"
+    out_path.write_text(json.dumps(cards, indent=2), encoding="utf-8")
+    return out_path
+
+
 def main() -> None:
     """Generate flashcards from a text file."""
     import argparse
