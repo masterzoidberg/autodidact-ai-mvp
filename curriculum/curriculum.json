@@ -1,0 +1,34 @@
+{
+  "goal": "Learn Typography",
+  "topics": [
+    {
+      "title": "Introduction to Typography",
+      "prerequisites": []
+    },
+    {
+      "title": "Fonts and Typefaces",
+      "prerequisites": [
+        "Introduction to Typography"
+      ]
+    },
+    {
+      "title": "Layout and Hierarchy",
+      "prerequisites": [
+        "Introduction to Typography",
+        "Fonts and Typefaces"
+      ]
+    },
+    {
+      "title": "Typography for Web",
+      "prerequisites": [
+        "Layout and Hierarchy"
+      ]
+    },
+    {
+      "title": "Advanced Typography Techniques",
+      "prerequisites": [
+        "Typography for Web"
+      ]
+    }
+  ]
+}
