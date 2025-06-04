@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Upload Success</title>
+</head>
+<body>
+    <h1>Upload Successful</h1>
+    <p>Uploaded file: {{ uploaded }}</p>
+    {% if paths %}
+    <h2>Generated Files</h2>
+    <ul>
+    {% for p in paths %}
+        <li>{{ p }}</li>
+    {% endfor %}
+    </ul>
+    {% endif %}
+    <a href="/">Home</a>
+</body>
+</html>
