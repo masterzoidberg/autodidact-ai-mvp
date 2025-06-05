@@ -39,9 +39,14 @@ def due_today(queue: List[Dict[str, str]], today: date) -> List[Dict[str, str]]:
     iso = today.isoformat()
     return [item for item in queue if item.get("due_date") == iso]
 
+def get_due_flashcards(queue_path: Path) -> List[Dict[str, str]]:
+    """Return flashcards due today from the given queue path."""
+    queue = read_queue(queue_path)
+    return due_today(queue, date.today())
 
-def get_due_flashcards() -> List[Dict[str, str]]:
-    """Return flashcards due today from the default queue file."""
+
+def main() -> None:
+    flashcards_path = Path("flashcards.json")
     queue_path = Path("spaced_review_queue.json")
     queue = read_queue(queue_path)
     return due_today(queue, date.today())

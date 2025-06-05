@@ -143,6 +143,35 @@ def flashcards():
     return render_template("flashcards.html", cards=cards)
 
 
+@app.route("/review", methods=["GET", "POST"])
+def review():
+    """Daily review interface showing flashcards due today."""
+    cards = spaced_scheduler.get_due_flashcards(QUEUE_PATH)
+
+    if request.method == "POST":
+        question = request.form.get("question", "")
+        result = request.form.get("result", "incorrect")
+        correct = result == "correct"
+        entry = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "question": question,
+            "correct": correct,
+        }
+        if REVIEW_LOG_PATH.exists():
+            try:
+                log = json.loads(REVIEW_LOG_PATH.read_text())
+            except json.JSONDecodeError:
+                log = []
+        else:
+            log = []
+        log.append(entry)
+        REVIEW_LOG_PATH.write_text(json.dumps(log, indent=2), encoding="utf-8")
+        flash("Result logged")
+        return redirect(url_for("review"))
+
+    return render_template("review.html", cards=cards)
+
+
 @app.route("/dashboard")
 def dashboard():
     docs = list(DATA_DIR.glob("*.md"))
@@ -295,7 +324,6 @@ def save_clip():
     CLIPS_PATH.write_text(json.dumps(clips, indent=2), encoding="utf-8")
     return {"status": "saved"}
 
-
 @app.route("/review", methods=["GET", "POST"])
 def review():
     """Daily review interface showing flashcards due today."""
@@ -323,8 +351,6 @@ def review():
         return redirect(url_for("review"))
 
     return render_template("review.html", cards=cards)
-
-
 @app.route("/quiz", methods=["GET", "POST"])
 def quiz():
     """Simple flashcard quiz interface."""
