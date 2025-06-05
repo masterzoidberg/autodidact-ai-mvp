@@ -19,7 +19,7 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 sys.path.append(str(BASE_DIR))
 
 from learning import spaced_scheduler, flashcard_gen
-from utils import focus_timer
+from utils import focus_timer, summary_writer
 from videos import video_manager
 from ingestion import document_ingestor, video_ingestor
 FLASHCARDS_PATH = BASE_DIR / "flashcards.json"
@@ -71,6 +71,7 @@ def curriculum():
 @app.route("/upload", methods=["POST"])
 def upload():
     file = request.files.get("file")
+    project = request.form.get("project") or "default"
     if not file or file.filename == "":
         flash("No file selected")
         return redirect(url_for("index"))
@@ -80,20 +81,60 @@ def upload():
     file.save(dest)
 
     paths = []
+    summary = ""
+    flashcard_count = 0
+
     ext = dest.suffix.lower()
-    if ext in {".pdf", ".epub"}:
-        output = document_ingestor.ingest_document(str(dest))
-        app.logger.info(f"Document ingested to {output}")
-        paths.append(str(output))
-    elif ext == ".mp4":
-        t_path, c_path = video_ingestor.ingest_video(str(dest))
-        app.logger.info(f"Video processed: {t_path}, {c_path}")
-        paths.extend([str(t_path), str(c_path)])
-    else:
-        flash("Unsupported file type")
+
+    try:
+        if ext in {".pdf", ".epub"}:
+            output = document_ingestor.ingest_document(str(dest), project)
+            app.logger.info(f"Document ingested to {output}")
+            paths.append(str(output))
+
+            text = Path(output).read_text(encoding="utf-8")
+            summary = summary_writer.generate_summary(text)
+            summary_path = Path(output).parent / "summary.json"
+            summary_path.write_text(json.dumps({"summary": summary}, indent=2), encoding="utf-8")
+            paths.append(str(summary_path))
+
+            cards = flashcard_gen.generate_flashcards(text)
+            flashcards_path = Path(output).parent / "flashcards.json"
+            flashcards_path.write_text(json.dumps(cards, indent=2), encoding="utf-8")
+            flashcard_count = len(cards)
+            paths.append(str(flashcards_path))
+        elif ext == ".mp4":
+            t_path, c_path = video_ingestor.ingest_video(str(dest), project)
+            app.logger.info(f"Video processed: {t_path}, {c_path}")
+            paths.extend([str(t_path), str(c_path)])
+
+            transcript_text = Path(t_path).read_text(encoding="utf-8")
+            summary = summary_writer.generate_summary(transcript_text)
+            summary_path = Path(t_path).parent / "summary.json"
+            summary_path.write_text(json.dumps({"summary": summary}, indent=2), encoding="utf-8")
+            paths.append(str(summary_path))
+
+            flashcards_path = flashcard_gen.generate_flashcards_from_transcript(c_path, project)
+            paths.append(str(flashcards_path))
+            try:
+                flashcard_count = len(json.loads(Path(flashcards_path).read_text()))
+            except Exception:
+                flashcard_count = 0
+        else:
+            flash("Unsupported file type")
+            return redirect(url_for("index"))
+    except Exception as e:
+        app.logger.exception("Error processing upload")
+        flash(str(e))
         return redirect(url_for("index"))
 
-    return render_template("upload_success.html", uploaded=str(dest), paths=paths)
+    return render_template(
+        "upload_success.html",
+        uploaded=str(dest),
+        paths=paths,
+        summary=summary,
+        flashcard_count=flashcard_count,
+    )
 
 @app.route("/flashcards")
 def flashcards():
@@ -165,16 +206,103 @@ def generate_flashcards_route():
     out_path = flashcard_gen.generate_flashcards_from_transcript(transcript_path)
     return {"flashcards": str(out_path)}
 
-def _run_focus(minutes: int) -> None:
+def _run_focus(minutes: int, session_type: str, project_id: str) -> None:
+    start = datetime.utcnow()
     focus_timer.countdown(minutes)
-    focus_timer.log_session(minutes, FOCUS_LOG_PATH)
+    end = datetime.utcnow()
+    focus_timer.log_session(start, end, session_type, project_id, FOCUS_LOG_PATH)
 
+
+def _calculate_streak(log: list[dict]) -> int:
+    streak = 0
+    last_date = None
+    for entry in reversed(log):
+        try:
+            start_date = datetime.fromisoformat(entry["start"].replace("Z", "")).date()
+        except Exception:
+            continue
+        if last_date is None:
+            streak = 1
+            last_date = start_date
+            continue
+        diff = (last_date - start_date).days
+        if diff == 0:
+            continue
+        if diff == 1:
+            streak += 1
+            last_date = start_date
+        else:
+            break
+    return streak
+    
 @app.route("/focus", methods=["POST"])
 def focus():
     minutes = int(request.form.get("minutes", 25))
-    threading.Thread(target=_run_focus, args=(minutes,), daemon=True).start()
-    flash(f"Started a {minutes} minute focus session")
+    session_type = request.form.get("session_type", "read")
+    project_id = request.form.get("project_id", "default")
+    threading.Thread(
+        target=_run_focus,
+        args=(minutes, session_type, project_id),
+        daemon=True,
+    ).start()
+    flash(
+        f"Started a {minutes} minute {session_type} session for project {project_id}"
+    )
     return redirect(url_for("index"))
+
+
+@app.route("/session_summary", methods=["GET", "POST"])
+def session_summary():
+    if not FOCUS_LOG_PATH.exists():
+        return "No sessions", 404
+    try:
+        log = json.loads(FOCUS_LOG_PATH.read_text())
+        if not isinstance(log, list):
+            log = []
+    except json.JSONDecodeError:
+        log = []
+    if not log:
+        return "No sessions", 404
+    last = log[-1]
+    streak = _calculate_streak(log)
+    total_time = last.get("session_length")
+    session_type = last.get("session_type", "")
+    project_id = last.get("project_id", "default")
+
+    if request.method == "POST":
+        surprised = request.form.get("surprised", "")
+        revisit = request.form.get("revisit", "")
+        out_dir = DATA_DIR / "projects" / project_id
+        out_dir.mkdir(parents=True, exist_ok=True)
+        ref_path = out_dir / "reflections.json"
+        if ref_path.exists():
+            try:
+                reflections = json.loads(ref_path.read_text())
+                if not isinstance(reflections, list):
+                    reflections = []
+            except json.JSONDecodeError:
+                reflections = []
+        else:
+            reflections = []
+        reflections.append(
+            {
+                "start": last.get("start"),
+                "end": last.get("end"),
+                "surprised": surprised,
+                "revisit": revisit,
+            }
+        )
+        ref_path.write_text(json.dumps(reflections, indent=2), encoding="utf-8")
+        flash("Reflection saved")
+        return redirect(url_for("index"))
+
+    return render_template(
+        "session_summary.html",
+        total_time=total_time,
+        session_type=session_type,
+        streak=streak,
+        project_id=project_id,
+    )
 
 
 @app.route("/clip", methods=["POST"])
@@ -196,7 +324,33 @@ def save_clip():
     CLIPS_PATH.write_text(json.dumps(clips, indent=2), encoding="utf-8")
     return {"status": "saved"}
 
+@app.route("/review", methods=["GET", "POST"])
+def review():
+    """Daily review interface showing flashcards due today."""
+    cards = spaced_scheduler.get_due_flashcards()
 
+    if request.method == "POST":
+        question = request.form.get("question", "")
+        result = request.form.get("result", "incorrect")
+        correct = result == "correct"
+        entry = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "question": question,
+            "correct": correct,
+        }
+        if REVIEW_LOG_PATH.exists():
+            try:
+                log = json.loads(REVIEW_LOG_PATH.read_text())
+            except json.JSONDecodeError:
+                log = []
+        else:
+            log = []
+        log.append(entry)
+        REVIEW_LOG_PATH.write_text(json.dumps(log, indent=2), encoding="utf-8")
+        flash("Result logged")
+        return redirect(url_for("review"))
+
+    return render_template("review.html", cards=cards)
 @app.route("/quiz", methods=["GET", "POST"])
 def quiz():
     """Simple flashcard quiz interface."""

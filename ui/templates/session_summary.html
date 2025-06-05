@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Session Summary</title>
+</head>
+<body>
+    <h1>Session Summary</h1>
+    <p>Activity: {{ session_type }}</p>
+    <p>Total time: {{ total_time }} minutes</p>
+    <p>Current streak: {{ streak }} days</p>
+    <form method="post">
+        <label for="surprised">What surprised you?</label><br>
+        <textarea name="surprised" id="surprised" rows="3" cols="40"></textarea><br>
+        <label for="revisit">What will you revisit next session?</label><br>
+        <textarea name="revisit" id="revisit" rows="3" cols="40"></textarea><br>
+        <button type="submit">Save Reflection</button>
+    </form>
+    <a href="/">Home</a>
+</body>
+</html>

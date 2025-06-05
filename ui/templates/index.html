@@ -9,15 +9,29 @@
     <ul>
         <li><a href="/curriculum">View Curriculum</a></li>
         <li><a href="/flashcards">Flashcards Due Today</a></li>
+        <li><a href="/review">Daily Review</a></li>
         <li><a href="/videos">Video Library</a></li>
     </ul>
     <h2>Upload Content</h2>
     <form action="/upload" method="post" enctype="multipart/form-data">
+        <label for="project">Project:</label>
+        <input type="text" name="project" id="project" list="projects" placeholder="Project ID">
+        <datalist id="projects">
+            <option value="default"></option>
+        </datalist>
         <input type="file" name="file" accept=".pdf,.epub,.mp4">
         <button type="submit">Upload</button>
     </form>
     <h2>Start Focus Session</h2>
     <form action="/focus" method="post">
+        <label for="project_id">Project:</label>
+        <input type="text" name="project_id" id="project_id" placeholder="Project ID" value="default">
+        <label for="session_type">Activity:</label>
+        <select name="session_type" id="session_type">
+            <option value="read">Read</option>
+            <option value="build">Build</option>
+            <option value="review">Review</option>
+        </select>
         <select name="minutes">
             <option value="25">25 minutes</option>
             <option value="50">50 minutes</option>
